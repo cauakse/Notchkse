@@ -75,8 +75,12 @@ struct NotchRootView: View {
             let extraHeight = activity.hasPeekRow ? NotchMetrics.peekRowHeight : 0
             return CGSize(width: base + 2 * side, height: notch.height + extraHeight)
         }
+        let strip: CGFloat = ClosedView.downloadStrip(ctx) != nil ? ClosedView.stripHeight : 0
         if let side = ClosedView.mediaSide(ctx) {
-            return CGSize(width: base + 2 * side, height: notch.height)
+            return CGSize(width: base + 2 * side, height: notch.height + strip)
+        }
+        if strip > 0 {
+            return CGSize(width: base, height: notch.height + strip)
         }
         if model.isHovering {
             return CGSize(width: base + 18, height: notch.height + 4)
@@ -112,8 +116,19 @@ struct ClosedView: View {
 
     static func activeActivity(_ ctx: AppContext) -> LiveActivity? {
         if let transient = ctx.activities.transient { return transient }
-        if let download = ctx.activities.download, ctx.model.sideRoom >= minSide { return download }
+        if let download = ctx.activities.download, ctx.model.sideRoom >= fullSide { return download }
         return nil
+    }
+
+    /// Altura extra da barrinha de download embaixo do notch encolhido.
+    static let stripHeight: CGFloat = 5
+
+    /// Progresso do download quando o notch está encolhido (sem espaço nas
+    /// laterais): aparece como uma barrinha fina embaixo do notch.
+    static func downloadStrip(_ ctx: AppContext) -> Double? {
+        guard ctx.activities.transient == nil, let download = ctx.activities.download,
+              ctx.model.sideRoom < fullSide else { return nil }
+        return download.progress ?? 0
     }
 
     /// Largura de cada lado para a música, ou nil se não deve aparecer.
@@ -145,11 +160,21 @@ struct ClosedView: View {
             }
             .id(activity.id)
             .transition(.blurReplace)
-        } else if let side = Self.mediaSide(ctx) {
-            mediaRow(side: side)
-                .transition(.blurReplace)
         } else {
-            Color.clear
+            VStack(spacing: 0) {
+                if let side = Self.mediaSide(ctx) {
+                    mediaRow(side: side)
+                        .transition(.blurReplace)
+                } else {
+                    Color.clear.frame(height: height)
+                }
+                if let progress = Self.downloadStrip(ctx) {
+                    DownloadStrip(progress: progress)
+                        .padding(.horizontal, NotchMetrics.closedBottomRadius + 4)
+                        .frame(height: Self.stripHeight)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 
@@ -256,6 +281,23 @@ struct VisualEffectBlur: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+/// Barrinha fina de progresso do download (notch encolhido).
+struct DownloadStrip: View {
+    var progress: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.18))
+                Capsule().fill(Color.white)
+                    .frame(width: max(2, geo.size.width * min(max(progress, 0), 1)))
+            }
+            .frame(height: 2)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
 }
 
 /// Controles da música pausada no notch fechado.

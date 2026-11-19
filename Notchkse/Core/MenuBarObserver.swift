@@ -14,6 +14,9 @@ final class MenuBarObserver {
     /// Borda esquerda dos ícones de status (cache; muda só quando apps abrem/fecham).
     private var statusMinX: CGFloat?
     private let statusQueue = DispatchQueue(label: "dev.notchkse.statusitems", qos: .utility)
+    /// Última leitura bem-sucedida dos menus de cada app (pid → posições).
+    private var menuCache: [pid_t: [CGRect]] = [:]
+    private var retries = 0
 
     init(model: NotchModel) {
         self.model = model
@@ -92,7 +95,23 @@ final class MenuBarObserver {
 
         // Menus do app: o macOS coloca os que não cabem à esquerda do notch
         // do lado direito dele (ex.: "Janela", "Ajuda").
-        let menus = Self.frontmostMenuFrames(onBarAtY: screenTop, barHeight: notch.height)
+        let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+        let menus: [CGRect]
+        if let read = Self.frontmostMenuFrames(onBarAtY: screenTop, barHeight: notch.height) {
+            menus = read
+            menuCache[pid] = read
+            retries = 0
+        } else {
+            // App ocupado (ex.: navegador baixando arquivo) não respondeu a tempo:
+            // mantém a última medição conhecida e tenta de novo em instantes.
+            menus = menuCache[pid] ?? []
+            if retries < 3 {
+                retries += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.measure() }
+            }
+            if menuCache[pid] == nil { return }
+        }
+        if menuCache.count > 30 { menuCache = [pid: menus] }
         let center = screen.frame.midX
         let leftMenusMaxX = menus.filter { $0.midX < center }.map(\.maxX).max()
         let rightMenusMinX = menus.filter { $0.midX >= center }.map(\.minX).min()
@@ -112,16 +131,17 @@ final class MenuBarObserver {
     }
 
     /// Posição de cada menu (Arquivo, Editar…) do app em primeiro plano.
-    private static func frontmostMenuFrames(onBarAtY barTop: CGFloat, barHeight: CGFloat) -> [CGRect] {
-        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication else { return [] }
+    /// nil = não foi possível ler (sem permissão, app ocupado/timeout).
+    private static func frontmostMenuFrames(onBarAtY barTop: CGFloat, barHeight: CGFloat) -> [CGRect]? {
+        guard AXIsProcessTrusted(), let app = NSWorkspace.shared.frontmostApplication else { return nil }
         let element = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(element, 0.25)
         var menuBarRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXMenuBarAttribute as CFString, &menuBarRef) == .success,
-              let menuBar = menuBarRef else { return [] }
+              let menuBar = menuBarRef else { return nil }
         var childrenRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(menuBar as! AXUIElement, kAXChildrenAttribute as CFString, &childrenRef) == .success,
-              let children = childrenRef as? [AXUIElement] else { return [] }
+              let children = childrenRef as? [AXUIElement] else { return nil }
 
         // Ignora o menu da maçã e menus ocultos; só a barra desta tela.
         return children.compactMap(frame(of:)).filter { $0.width > 0 && abs($0.minY - barTop) < barHeight }
