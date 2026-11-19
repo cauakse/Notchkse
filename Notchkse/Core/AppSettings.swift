@@ -126,7 +126,7 @@ final class AppSettings {
             "hoverToOpen": true,
             "hoverDelay": 0.12,
             "haptics": true,
-            "showMenuBarIcon": true,
+            "showMenuBarIcon": false,
             "mediaLiveActivity": true,
             "preferredAgent": "claude",
             "ollamaModel": "llama3.2",
