@@ -116,18 +116,21 @@ struct ClosedView: View {
 
     static func activeActivity(_ ctx: AppContext) -> LiveActivity? {
         if let transient = ctx.activities.transient { return transient }
-        if let download = ctx.activities.download, ctx.model.sideRoom >= fullSide { return download }
+        // Download nas laterais só sem música e com espaço; senão vira barrinha.
+        if let download = ctx.activities.download, ctx.model.sideRoom >= fullSide, mediaSide(ctx) == nil {
+            return download
+        }
         return nil
     }
 
     /// Altura extra da barrinha de download embaixo do notch encolhido.
     static let stripHeight: CGFloat = 5
 
-    /// Progresso do download quando o notch está encolhido (sem espaço nas
-    /// laterais): aparece como uma barrinha fina embaixo do notch.
+    /// Progresso do download como barrinha fina embaixo do notch quando a
+    /// música ocupa as laterais ou quando o notch está encolhido.
     static func downloadStrip(_ ctx: AppContext) -> Double? {
         guard ctx.activities.transient == nil, let download = ctx.activities.download,
-              ctx.model.sideRoom < fullSide else { return nil }
+              ctx.model.sideRoom < fullSide || mediaSide(ctx) != nil else { return nil }
         return download.progress ?? 0
     }
 
