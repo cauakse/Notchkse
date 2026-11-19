@@ -1,7 +1,9 @@
+import ApplicationServices
 import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppContext.self) private var ctx
+    @State private var axTrusted = AXIsProcessTrusted()
 
     var body: some View {
         @Bindable var settings = ctx.settings
@@ -48,6 +50,19 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("Não cobrir os menus dos apps", isOn: $settings.avoidMenuBar)
+                if settings.avoidMenuBar && !axTrusted {
+                    HStack {
+                        Label("O Notchkse ainda não tem permissão de Acessibilidade.", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                        Spacer()
+                        Button("Abrir Acessibilidade") {
+                            MenuBarObserver.requestAccess()
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
                 Text("Se os menus do app (Arquivo, Editar…) ou os ícones da direita chegarem perto do notch, a música e o download não alargam o notch. Precisa da permissão de Acessibilidade.")
                     .font(.caption).foregroundStyle(.secondary)
                 Text("Fechado, o notch continua preto sólido para se fundir com o notch físico.")
@@ -121,8 +136,12 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            axTrusted = AXIsProcessTrusted()
+        }
         .frame(width: 560, height: 620)
         .onAppear {
+            axTrusted = AXIsProcessTrusted()
             if settings.isOn(.shortcuts) { ctx.shortcuts.loadList() }
             if settings.isOn(.ai) { ctx.agent.detect() }
         }
