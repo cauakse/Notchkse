@@ -42,10 +42,12 @@ extension NSScreen {
     /// Tamanho do notch físico; em Macs sem notch, um notch "virtual".
     var notchSize: CGSize {
         let top = safeAreaInsets.top
-        if top > 0, let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea {
-            return CGSize(width: frame.width - left.width - right.width, height: top)
-        }
         let menuBar = frame.maxY - visibleFrame.maxY
+        if top > 0, let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea {
+            // A área segura (32 pt) fica ~1 pt acima do fim do recorte físico;
+            // a barra de menus (33 pt) cobre o recorte inteiro.
+            return CGSize(width: frame.width - left.width - right.width, height: max(top, menuBar))
+        }
         return CGSize(width: 190, height: max(menuBar, 24))
     }
 }
