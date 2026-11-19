@@ -111,22 +111,56 @@ final class SystemStats {
 
 // MARK: - Medidor: ícone claro preenchido de baixo para cima com cor forte
 
+/// Ícone de placa de vídeo desenhado à mão (o SF Symbols não tem um de GPU).
+/// Corpo com ventoinha vazada, suporte à esquerda e conectores embaixo.
+struct GPUIconShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let u = min(rect.width, rect.height) / 16
+        func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect {
+            CGRect(x: rect.minX + x * u, y: rect.minY + y * u, width: w * u, height: h * u)
+        }
+        var p = Path()
+        // Corpo da placa
+        p.addRoundedRect(in: r(0.5, 2, 15, 10), cornerSize: CGSize(width: 2.4 * u, height: 2.4 * u))
+        // Duas ventoinhas vazadas (even-odd), cada uma com o miolo preenchido
+        p.addEllipse(in: r(1.9, 3.4, 7.2, 7.2))
+        p.addEllipse(in: r(4.4, 5.9, 2.2, 2.2))
+        p.addEllipse(in: r(9.6, 4.6, 4.8, 4.8))
+        p.addEllipse(in: r(11.25, 6.25, 1.5, 1.5))
+        // Contatos do slot PCIe
+        p.addRoundedRect(in: r(3, 12.9, 4.5, 2), cornerSize: CGSize(width: 0.5 * u, height: 0.5 * u))
+        p.addRoundedRect(in: r(8.5, 12.9, 4.5, 2), cornerSize: CGSize(width: 0.5 * u, height: 0.5 * u))
+        return p
+    }
+}
+
+enum GaugeIcon {
+    case symbol(String)
+    case gpu
+
+    @ViewBuilder
+    func view(_ style: Color) -> some View {
+        switch self {
+        case .symbol(let name):
+            Image(systemName: name).font(.system(size: 13, weight: .semibold)).foregroundStyle(style)
+        case .gpu:
+            GPUIconShape().fill(style, style: FillStyle(eoFill: true)).frame(width: 16, height: 16)
+        }
+    }
+}
+
 /// Ícone em branco translúcido de fundo, preenchido de baixo para cima
 /// com branco sólido conforme o uso.
 struct UsageGauge: View {
-    let symbol: String
+    let icon: GaugeIcon
     let label: String
     let value: Double
 
     var body: some View {
         HStack(spacing: 4) {
             ZStack {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.22))
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                icon.view(.white.opacity(0.22))
+                icon.view(.white)
                     .mask(alignment: .bottom) {
                         GeometryReader { geo in
                             Rectangle()
@@ -153,9 +187,9 @@ struct HeaderStats: View {
     var body: some View {
         let stats = ctx.stats
         HStack(spacing: 8) {
-            UsageGauge(symbol: "cpu.fill", label: "CPU", value: stats.cpu)
-            UsageGauge(symbol: "square.stack.3d.down.forward.fill", label: "GPU", value: stats.gpu)
-            UsageGauge(symbol: "memorychip.fill", label: String(format: "RAM (%.1f GB)", stats.ramUsedGB), value: stats.ram)
+            UsageGauge(icon: .symbol("cpu.fill"), label: "CPU", value: stats.cpu)
+            UsageGauge(icon: .gpu, label: "GPU", value: stats.gpu)
+            UsageGauge(icon: .symbol("memorychip.fill"), label: String(format: "RAM (%.1f GB)", stats.ramUsedGB), value: stats.ram)
         }
         .onAppear { stats.beginObserving() }
         .onDisappear { stats.endObserving() }

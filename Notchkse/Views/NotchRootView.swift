@@ -13,33 +13,27 @@ struct NotchRootView: View {
         let glass = model.isExpanded && ctx.settings.glassBackground
 
         ZStack(alignment: .top) {
+            // Sombra separada do vidro (senão ela "suja" o blur).
+            shape
+                .fill(Color.black.opacity(model.isExpanded ? 0.01 : 0))
+                .shadow(color: .black.opacity(model.isExpanded ? 0.55 : 0), radius: 18, y: 10)
+
             // Fechado: preto sólido (se funde com o notch físico).
             // Aberto com vidro: blur do que está atrás + camada preta ajustável.
-            ZStack {
-                if glass {
-                    VisualEffectBlur()
-                        .clipShape(shape)
-                        .transition(.opacity)
-                }
-                shape.fill(Color.black.opacity(glass ? ctx.settings.glassDarkness : 1))
-            }
-            .compositingGroup()
-            .shadow(color: .black.opacity(model.isExpanded ? 0.5 : 0), radius: 16, y: 8)
-            .animation(.easeInOut(duration: 0.25), value: glass)
-            .animation(.easeInOut(duration: 0.2), value: ctx.settings.glassDarkness)
+            shape.fill(Color.black.opacity(glass ? ctx.settings.glassDarkness : 1))
+                .animation(.easeInOut(duration: 0.25), value: glass)
+                .animation(.easeInOut(duration: 0.2), value: ctx.settings.glassDarkness)
 
             Group {
                 if model.isExpanded {
                     ExpandedView()
                         .padding(.horizontal, topRadius)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.92, anchor: .top))
-                                .animation(.notchOpen.delay(0.05)),
-                            removal: .opacity.animation(.easeOut(duration: 0.12))))
+                        .transition(.notchContent)
                 } else {
                     ClosedView(notchWidth: model.notchSize.width, height: model.notchSize.height)
                         .padding(.horizontal, topRadius)
-                        .transition(.opacity.animation(.easeInOut(duration: 0.18)))
+                        .transition(.asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.2).delay(0.12)),
+                                                removal: .opacity.animation(.easeOut(duration: 0.08))))
                 }
             }
             .frame(width: size.width, height: size.height, alignment: .top)
@@ -48,6 +42,19 @@ struct NotchRootView: View {
         .frame(width: size.width, height: size.height)
         .scaleEffect(model.isDropTargeted ? 1.02 : 1, anchor: .top)
         .frame(width: NotchMetrics.windowWidth, height: NotchMetrics.windowHeight, alignment: .top)
+        .background(alignment: .top) {
+            // O blur tem tamanho fixo (a janela toda) e é recortado pelo formato
+            // animado do notch: assim os dois crescem juntos, quadro a quadro.
+            if glass {
+                VisualEffectBlur()
+                    .frame(width: NotchMetrics.windowWidth, height: NotchMetrics.windowHeight)
+                    .mask(alignment: .top) {
+                        shape.frame(width: size.width, height: size.height)
+                            .scaleEffect(model.isDropTargeted ? 1.02 : 1, anchor: .top)
+                    }
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            }
+        }
         .environment(\.colorScheme, .dark)
     }
 

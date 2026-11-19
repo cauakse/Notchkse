@@ -5,17 +5,17 @@ struct ExpandedView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            header
+            header.staggerIn(0)
             Group {
                 switch ctx.model.tab {
                 case .home: HomeView()
-                case .tray: TrayView()
-                case .clipboard: ClipboardView()
-                case .ai: AIView()
+                case .tray: TrayView().staggerIn(1)
+                case .clipboard: ClipboardView().staggerIn(1)
+                case .ai: AIView().staggerIn(1)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .transition(.opacity)
+            .transition(.opacity.animation(.easeOut(duration: 0.1)))
             .id(ctx.model.tab)
         }
         .padding(.horizontal, 14)

@@ -103,6 +103,9 @@ final class BluetoothMonitor: NSObject {
 
     private static func symbol(for device: IOBluetoothDevice, name: String) -> String {
         let lower = name.lowercased()
+        if lower.contains("iphone") { return "iphone" }
+        if lower.contains("ipad") { return "ipad" }
+        if lower.contains("watch") { return "applewatch" }
         if lower.contains("airpods max") { return "airpodsmax" }
         if lower.contains("airpods pro") { return "airpodspro" }
         if lower.contains("airpods") { return "airpods" }

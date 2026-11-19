@@ -6,10 +6,10 @@ struct HomeView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if ctx.isOn(.media) { MediaCard() }
-            if ctx.isOn(.calendar) { CalendarCard().frame(width: 180) }
-            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 150) }
-            if ctx.isOn(.mirror) { MirrorTile().frame(width: 120) }
+            if ctx.isOn(.media) { MediaCard().staggerIn(1) }
+            if ctx.isOn(.calendar) { CalendarCard().frame(width: 180).staggerIn(2) }
+            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 150).staggerIn(3) }
+            if ctx.isOn(.mirror) { MirrorTile().frame(width: 120).staggerIn(4) }
         }
     }
 }

@@ -50,9 +50,50 @@ final class NotchModel {
 
 /// Animações no estilo "spring" que dão a sensação de sistema.
 extension Animation {
-    static let notchOpen = Animation.spring(response: 0.42, dampingFraction: 0.78)
-    static let notchClose = Animation.spring(response: 0.36, dampingFraction: 0.92)
-    static let notchPeek = Animation.spring(response: 0.38, dampingFraction: 0.82)
+    /// Abertura com leve "quique" no final (o formato passa um pouco e volta).
+    static let notchOpen = Animation.spring(response: 0.5, dampingFraction: 0.68)
+    /// Fechamento firme e rápido, com um assentamento sutil.
+    static let notchClose = Animation.spring(response: 0.36, dampingFraction: 0.8)
+    static let notchPeek = Animation.spring(response: 0.4, dampingFraction: 0.72)
+    /// Entrada em cascata do conteúdo.
+    static func notchStagger(_ index: Int) -> Animation {
+        .spring(response: 0.48, dampingFraction: 0.74).delay(0.07 + Double(index) * 0.045)
+    }
+}
+
+/// Conteúdo surge desfocado, menor e um pouco acima, e "assenta" no lugar.
+struct BlurFade: ViewModifier {
+    var progress: Double  // 0 = escondido, 1 = visível
+    func body(content: Content) -> some View {
+        content
+            .opacity(progress)
+            .blur(radius: (1 - progress) * 10)
+            .scaleEffect(0.9 + 0.1 * progress, anchor: .top)
+            .offset(y: (1 - progress) * -10)
+    }
+}
+
+struct StaggerIn: ViewModifier {
+    let index: Int
+    @State private var shown = false
+    func body(content: Content) -> some View {
+        content
+            .modifier(BlurFade(progress: shown ? 1 : 0))
+            .onAppear { withAnimation(.notchStagger(index)) { shown = true } }
+    }
+}
+
+extension View {
+    func staggerIn(_ index: Int) -> some View { modifier(StaggerIn(index: index)) }
+}
+
+extension AnyTransition {
+    static var notchContent: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.animation(.easeOut(duration: 0.15)),
+            removal: .modifier(active: BlurFade(progress: 0), identity: BlurFade(progress: 1))
+                .animation(.easeIn(duration: 0.14)))
+    }
 }
 
 enum Theme {
