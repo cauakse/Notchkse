@@ -50,7 +50,7 @@ final class NotchModel {
     var leftRoom: CGFloat = .infinity
     var rightRoom: CGFloat = .infinity
     /// Largura que cabe de cada lado sem cobrir menus nem ícones.
-    var sideRoom: CGFloat { min(leftRoom, rightRoom) - 6 }
+    var sideRoom: CGFloat { min(leftRoom, rightRoom) - 2 }
 }
 
 /// Animações no estilo "spring" que dão a sensação de sistema.
@@ -60,6 +60,8 @@ extension Animation {
     /// Fechamento firme e rápido, com um assentamento sutil.
     static let notchClose = Animation.spring(response: 0.36, dampingFraction: 0.8)
     static let notchPeek = Animation.spring(response: 0.4, dampingFraction: 0.72)
+    /// Encaixe no espaço livre ao trocar de app (encolhe/expande com leve quique).
+    static let notchFit = Animation.spring(response: 0.46, dampingFraction: 0.66)
     /// Entrada em cascata do conteúdo.
     static func notchStagger(_ index: Int) -> Animation {
         .spring(response: 0.48, dampingFraction: 0.74).delay(0.07 + Double(index) * 0.045)

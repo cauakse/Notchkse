@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import SwiftUI
 
 /// Mede quanto espaço livre existe na barra de menus ao lado do notch:
 /// à esquerda até o último menu do app em primeiro plano, à direita até o
@@ -102,8 +103,12 @@ final class MenuBarObserver {
         #if DEBUG
         NSLog("Notchkse: AX=\(AXIsProcessTrusted()) menus=\(menus.count) leftRoom=\(left) rightRoom=\(right)")
         #endif
-        if model.leftRoom != left { model.leftRoom = left }
-        if model.rightRoom != right { model.rightRoom = right }
+        guard model.leftRoom != left || model.rightRoom != right else { return }
+        // Encolhe/expande com mola ao trocar de app.
+        withAnimation(.notchFit) {
+            model.leftRoom = left
+            model.rightRoom = right
+        }
     }
 
     /// Posição de cada menu (Arquivo, Editar…) do app em primeiro plano.

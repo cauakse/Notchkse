@@ -68,12 +68,12 @@ struct NotchRootView: View {
         }
         let base = notch.width + 2 * NotchMetrics.closedTopRadius
         if let activity = ClosedView.activeActivity(ctx) {
-            let side = ClosedView.sideWidth(activity)
+            let side = ClosedView.side(for: activity, ctx)
             let extraHeight = activity.hasPeekRow ? NotchMetrics.peekRowHeight : 0
             return CGSize(width: base + 2 * side, height: notch.height + extraHeight)
         }
-        if ClosedView.showsMedia(ctx) {
-            return CGSize(width: base + 2 * ClosedView.mediaSide, height: notch.height)
+        if let side = ClosedView.mediaSide(ctx) {
+            return CGSize(width: base + 2 * side, height: notch.height)
         }
         if model.isHovering {
             return CGSize(width: base + 18, height: notch.height + 4)
@@ -89,30 +89,42 @@ struct ClosedView: View {
     let notchWidth: CGFloat
     let height: CGFloat
 
-    static let mediaSide: CGFloat = 34
+    /// Largura ideal de cada lado para música/download.
+    static let fullSide: CGFloat = 34
+    /// Abaixo disso não cabe nem o ponto: some.
+    static let minSide: CGFloat = 4
 
-    /// Largura de cada lado que a atividade ocupa no notch fechado.
-    static func sideWidth(_ a: LiveActivity) -> CGFloat {
-        a.hasPeekRow ? 90 : (a.trailingText != nil ? 46 : mediaSide)
+    /// Largura ideal de cada lado que a atividade ocupa no notch fechado.
+    static func idealSide(_ a: LiveActivity) -> CGFloat {
+        a.hasPeekRow ? 90 : (a.trailingText != nil ? 46 : fullSide)
     }
 
-    /// Avisos rápidos aparecem sempre (somem em segundos). Os persistentes
-    /// (download, música) só aparecem se não cobrirem os menus do app.
+    /// Persistentes (download, música) se encaixam no espaço livre entre os
+    /// menus do app e o notch. Avisos rápidos usam a largura ideal (somem logo).
+    static func side(for a: LiveActivity, _ ctx: AppContext) -> CGFloat {
+        a.kind == .download ? min(fullSide, ctx.model.sideRoom) : idealSide(a)
+    }
+
     static func activeActivity(_ ctx: AppContext) -> LiveActivity? {
         if let transient = ctx.activities.transient { return transient }
-        if let download = ctx.activities.download, sideWidth(download) <= ctx.model.sideRoom { return download }
+        if let download = ctx.activities.download, ctx.model.sideRoom >= minSide { return download }
         return nil
     }
 
-    static func showsMedia(_ ctx: AppContext) -> Bool {
-        ctx.isOn(.media) && ctx.settings.mediaLiveActivity && ctx.media.hasTrack && ctx.media.isPlaying
-            && mediaSide <= ctx.model.sideRoom
+    /// Largura de cada lado para a música, ou nil se não deve aparecer.
+    static func mediaSide(_ ctx: AppContext) -> CGFloat? {
+        guard ctx.isOn(.media), ctx.settings.mediaLiveActivity, ctx.media.hasTrack, ctx.media.isPlaying,
+              ctx.model.sideRoom >= minSide else { return nil }
+        return min(fullSide, ctx.model.sideRoom)
     }
+
+    static func showsMedia(_ ctx: AppContext) -> Bool { mediaSide(ctx) != nil }
 
     var body: some View {
         if let activity = Self.activeActivity(ctx) {
             VStack(spacing: 0) {
-                row(leading: leading(activity), trailing: trailing(activity))
+                row(side: Self.side(for: activity, ctx), leading: leading(activity, side: Self.side(for: activity, ctx)),
+                    trailing: trailing(activity, side: Self.side(for: activity, ctx)))
                 if let title = activity.title {
                     HStack(spacing: 6) {
                         Text(title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
@@ -128,26 +140,53 @@ struct ClosedView: View {
             }
             .id(activity.id)
             .transition(.blurReplace)
-        } else if Self.showsMedia(ctx) {
-            row(leading: AnyView(artwork(ctx.media.artwork, size: height - 12)),
-                trailing: AnyView(AudioBars(playing: ctx.media.isPlaying, color: ctx.media.accent)))
+        } else if let side = Self.mediaSide(ctx) {
+            mediaRow(side: side)
                 .transition(.blurReplace)
         } else {
             Color.clear
         }
     }
 
-    private func row(leading: AnyView, trailing: AnyView) -> some View {
-        HStack(spacing: 0) {
-            leading.frame(maxWidth: .infinity, alignment: .leading)
+    /// Margem interna proporcional: lados estreitos ficam com pouca margem.
+    private func padding(for side: CGFloat) -> CGFloat { min(10, max(1, side * 0.28)) }
+
+    private func row(side: CGFloat, leading: AnyView, trailing: AnyView) -> some View {
+        let pad = padding(for: side)
+        return HStack(spacing: 0) {
+            leading.frame(width: max(0, side - pad), alignment: .center)
             Color.clear.frame(width: notchWidth)
-            trailing.frame(maxWidth: .infinity, alignment: .trailing)
+            trailing.frame(width: max(0, side - pad), alignment: .center)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, pad)
         .frame(height: height)
     }
 
-    private func leading(_ a: LiveActivity) -> AnyView {
+    /// Música no notch fechado, em três tamanhos conforme o espaço:
+    /// completo (capa + 4 barras), compacto (capa menor + 2 barras), mínimo (pontos).
+    private func mediaRow(side: CGFloat) -> some View {
+        let media = ctx.media
+        let usable = side - padding(for: side)
+        let leading: AnyView
+        let trailing: AnyView
+        // Modo muda o "id" → o conteúdo troca com blur enquanto o notch anima.
+        let mode = usable >= 20 ? "full" : (usable >= 12 ? "compact" : "dot")
+        if usable >= 12 {
+            leading = AnyView(artwork(media.artwork, size: min(height - 12, usable)))
+            trailing = AnyView(AudioBars(playing: media.isPlaying, color: media.accent, count: usable >= 20 ? 4 : 2))
+        } else {
+            leading = AnyView(PulseDot(size: min(6, usable)))
+            trailing = AnyView(PulseDot(size: min(6, usable), delay: 0.35))
+        }
+        return row(side: side,
+                   leading: AnyView(leading.id("L" + mode).transition(.blurReplace.combined(with: .scale(0.6)))),
+                   trailing: AnyView(trailing.id("R" + mode).transition(.blurReplace.combined(with: .scale(0.6)))))
+    }
+
+    private func leading(_ a: LiveActivity, side: CGFloat) -> AnyView {
+        if a.kind == .download, side - padding(for: side) < 12 {
+            return AnyView(PulseDot(size: min(6, side - padding(for: side))))
+        }
         if let image = a.image {
             return AnyView(artwork(image, size: height - 12))
         }
@@ -157,9 +196,11 @@ struct ClosedView: View {
             .symbolEffect(.bounce, value: a.id))
     }
 
-    private func trailing(_ a: LiveActivity) -> AnyView {
+    private func trailing(_ a: LiveActivity, side: CGFloat) -> AnyView {
         if a.kind == .download {
-            return AnyView(ProgressRing(progress: a.progress ?? 0, color: a.tint).frame(width: 16, height: 16))
+            let ring = min(16, max(5, side - padding(for: side)))
+            return AnyView(ProgressRing(progress: a.progress ?? 0, color: a.tint, lineWidth: ring < 10 ? 1.5 : 2.5)
+                .frame(width: ring, height: ring))
         }
         if let text = a.trailingText {
             return AnyView(Text(text).font(.system(size: 12, weight: .semibold).monospacedDigit())
@@ -205,16 +246,35 @@ struct VisualEffectBlur: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
+/// Ponto que pulsa suavemente (modo mínimo quando quase não há espaço).
+struct PulseDot: View {
+    var size: CGFloat
+    var delay: Double = 0
+    @State private var on = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: max(3, size), height: max(3, size))
+            .opacity(on ? 1 : 0.35)
+            .scaleEffect(on ? 1 : 0.7)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true).delay(delay)) { on = true }
+            }
+    }
+}
+
 /// Visualizador "fake" de áudio: ~8 quadros/s e pausado quando não toca.
 struct AudioBars: View {
     var playing: Bool
     var color: Color
+    var count: Int = 4
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.14, paused: !playing)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             HStack(spacing: 2) {
-                ForEach(0..<4, id: \.self) { i in
+                ForEach(0..<count, id: \.self) { i in
                     Capsule()
                         .fill(color.gradient)
                         .frame(width: 3, height: playing ? barHeight(i, t) : 3)
@@ -235,13 +295,14 @@ struct AudioBars: View {
 struct ProgressRing: View {
     var progress: Double
     var color: Color
+    var lineWidth: CGFloat = 2.5
 
     var body: some View {
         ZStack {
-            Circle().stroke(Color.white.opacity(0.15), lineWidth: 2.5)
+            Circle().stroke(Color.white.opacity(0.15), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: max(0.03, progress))
-                .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.easeOut(duration: 0.3), value: progress)
         }
