@@ -135,7 +135,8 @@ struct LyricLineView: View {
         Group {
             switch lyrics.state {
             case .ready:
-                TimelineView(.periodic(from: .now, by: 0.35)) { timeline in
+                // Atualiza só nos instantes em que uma nova linha começa (não em loop).
+                TimelineView(.explicit(lineChangeDates(lyrics))) { timeline in
                     let index = lyrics.index(at: ctx.media.position(at: timeline.date))
                     let text = index.map { lyrics.lines[$0].text } ?? "♪"
                     Text(text.isEmpty ? "♪" : text)
@@ -155,6 +156,21 @@ struct LyricLineView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
+    }
+}
+
+extension LyricLineView {
+    /// Datas (a partir de agora) em que cada próxima linha da letra começa.
+    func lineChangeDates(_ lyrics: LyricsService) -> [Date] {
+        let media = ctx.media
+        guard media.isPlaying else { return [] }
+        let now = Date()
+        let position = media.position(at: now)
+        return lyrics.lines.lazy
+            .map { $0.time - 0.3 }
+            .filter { $0 > position }
+            .prefix(200)
+            .map { now.addingTimeInterval($0 - position) }
     }
 }
 

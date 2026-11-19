@@ -20,7 +20,7 @@ final class SystemStats {
         viewers += 1
         guard timer == nil else { return }
         sample()
-        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.sample() }
         }
         timer.tolerance = 0.5
@@ -167,7 +167,6 @@ struct UsageGauge: View {
                                 .frame(height: geo.size.height * min(max(value, 0), 1))
                                 .frame(maxHeight: .infinity, alignment: .bottom)
                         }
-                        .animation(.easeInOut(duration: 0.6), value: value)
                     }
             }
             .frame(width: 16, height: 16)

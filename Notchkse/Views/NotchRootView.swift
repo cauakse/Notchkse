@@ -59,7 +59,10 @@ struct NotchRootView: View {
     }
 
     /// Tamanho do "corpo" preto em cada estado.
-    private var currentSize: CGSize {
+    private var currentSize: CGSize { Self.bodySize(ctx) }
+
+    /// Tamanho do corpo preto (usado também pelo sensor de mouse do controlador).
+    static func bodySize(_ ctx: AppContext) -> CGSize {
         let model = ctx.model
         let notch = model.notchSize
         if model.isExpanded {
@@ -91,6 +94,8 @@ struct ClosedView: View {
 
     /// Largura ideal de cada lado para música/download.
     static let fullSide: CGFloat = 34
+    /// Música pausada: cabe ⏮ ⏯ ⏭ do lado direito.
+    static let pausedSide: CGFloat = 72
     /// Abaixo disso não cabe nem o ponto: some.
     static let minSide: CGFloat = 4
 
@@ -113,9 +118,9 @@ struct ClosedView: View {
 
     /// Largura de cada lado para a música, ou nil se não deve aparecer.
     static func mediaSide(_ ctx: AppContext) -> CGFloat? {
-        guard ctx.isOn(.media), ctx.settings.mediaLiveActivity, ctx.media.hasTrack, ctx.media.isPlaying,
+        guard ctx.isOn(.media), ctx.settings.mediaLiveActivity, ctx.media.hasTrack,
               ctx.model.sideRoom >= minSide else { return nil }
-        return min(fullSide, ctx.model.sideRoom)
+        return min(ctx.media.isPlaying ? fullSide : pausedSide, ctx.model.sideRoom)
     }
 
     static func showsMedia(_ ctx: AppContext) -> Bool { mediaSide(ctx) != nil }
@@ -170,8 +175,15 @@ struct ClosedView: View {
         let leading: AnyView
         let trailing: AnyView
         // Modo muda o "id" → o conteúdo troca com blur enquanto o notch anima.
-        let mode = usable >= 20 ? "full" : (usable >= 12 ? "compact" : "dot")
-        if usable >= 12 {
+        var mode = usable >= 20 ? "full" : (usable >= 12 ? "compact" : "dot")
+        if !media.isPlaying {
+            // Pausada: capa (ou nada) à esquerda, controles à direita conforme o espaço.
+            mode = usable >= 54 ? "paused3" : (usable >= 14 ? "paused1" : "pausedDot")
+            leading = usable >= 12
+                ? AnyView(artwork(media.artwork, size: min(height - 12, usable)).opacity(0.7))
+                : AnyView(EmptyView())
+            trailing = AnyView(PausedControls(full: usable >= 54, compact: usable < 14))
+        } else if usable >= 12 {
             leading = AnyView(artwork(media.artwork, size: min(height - 12, usable)))
             trailing = AnyView(AudioBars(playing: media.isPlaying, color: media.accent, count: usable >= 20 ? 4 : 2))
         } else {
@@ -246,49 +258,159 @@ struct VisualEffectBlur: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
-/// Ponto que pulsa suavemente (modo mínimo quando quase não há espaço).
-struct PulseDot: View {
-    var size: CGFloat
-    var delay: Double = 0
-    @State private var on = false
+/// Controles da música pausada no notch fechado.
+struct PausedControls: View {
+    @Environment(AppContext.self) private var ctx
+    var full: Bool
+    var compact: Bool
 
     var body: some View {
-        Circle()
-            .fill(Color.white)
-            .frame(width: max(3, size), height: max(3, size))
-            .opacity(on ? 1 : 0.35)
-            .scaleEffect(on ? 1 : 0.7)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true).delay(delay)) { on = true }
+        let media = ctx.media
+        HStack(spacing: 2) {
+            if full {
+                button("backward.fill", size: 10, action: media.previous)
             }
+            button("play.fill", size: compact ? 8 : 12, action: media.togglePlay)
+            if full {
+                button("forward.fill", size: 10, action: media.next)
+            }
+        }
+    }
+
+    private func button(_ symbol: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: compact ? 10 : 18, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverButtonStyle(size: compact ? 10 : 18))
     }
 }
 
-/// Visualizador "fake" de áudio: ~8 quadros/s e pausado quando não toca.
-struct AudioBars: View {
+/// Ponto que pulsa suavemente (modo mínimo quando quase não há espaço).
+/// Animado pelo Core Animation: roda no servidor de janelas, ~0% de CPU no app.
+struct PulseDot: NSViewRepresentable {
+    var size: CGFloat
+    var delay: Double = 0
+
+    func makeNSView(context: Context) -> PulseDotView { PulseDotView() }
+    func updateNSView(_ view: PulseDotView, context: Context) { view.configure(size: max(3, size), delay: delay) }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: PulseDotView, context: Context) -> CGSize? {
+        CGSize(width: max(3, size), height: max(3, size))
+    }
+}
+
+final class PulseDotView: NSView {
+    private let dot = CALayer()
+    private var configured: (CGFloat, Double)?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        dot.backgroundColor = NSColor.white.cgColor
+        layer?.addSublayer(dot)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func configure(size: CGFloat, delay: Double) {
+        guard configured.map({ $0 != (size, delay) }) ?? true else { return }
+        configured = (size, delay)
+        dot.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+        dot.cornerRadius = size / 2
+        needsLayout = true
+
+        let pulse = CAAnimationGroup()
+        let opacity = CABasicAnimation(keyPath: "opacity")
+        opacity.fromValue = 0.35; opacity.toValue = 1
+        let scale = CABasicAnimation(keyPath: "transform.scale")
+        scale.fromValue = 0.7; scale.toValue = 1
+        pulse.animations = [opacity, scale]
+        pulse.duration = 0.7
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        pulse.beginTime = CACurrentMediaTime() + delay
+        dot.add(pulse, forKey: "pulse")
+    }
+
+    override func layout() {
+        super.layout()
+        dot.position = CGPoint(x: bounds.midX, y: bounds.midY)
+    }
+}
+
+/// Visualizador de áudio. As barras são animadas pelo Core Animation
+/// (o app só configura uma vez; quem anima é o servidor de janelas).
+struct AudioBars: NSViewRepresentable {
     var playing: Bool
     var color: Color
     var count: Int = 4
 
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 0.14, paused: !playing)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 2) {
-                ForEach(0..<count, id: \.self) { i in
-                    Capsule()
-                        .fill(color.gradient)
-                        .frame(width: 3, height: playing ? barHeight(i, t) : 3)
-                }
+    func makeNSView(context: Context) -> AudioBarsView { AudioBarsView() }
+    func updateNSView(_ view: AudioBarsView, context: Context) {
+        view.configure(count: count, color: NSColor(color), playing: playing)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: AudioBarsView, context: Context) -> CGSize? {
+        CGSize(width: CGFloat(count) * 3 + CGFloat(max(0, count - 1)) * 2, height: 14)
+    }
+}
+
+final class AudioBarsView: NSView {
+    private var bars: [CALayer] = []
+    private var state: (Int, NSColor, Bool)?
+    private static let durations: [CFTimeInterval] = [0.42, 0.57, 0.36, 0.5]
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func configure(count: Int, color: NSColor, playing: Bool) {
+        if let state, state.0 == count, state.1 == color, state.2 == playing { return }
+        state = (count, color, playing)
+        if bars.count != count {
+            bars.forEach { $0.removeFromSuperlayer() }
+            bars = (0..<count).map { _ in
+                let bar = CALayer()
+                bar.cornerRadius = 1.5
+                layer?.addSublayer(bar)
+                return bar
             }
-            .frame(height: 14)
-            .animation(.easeInOut(duration: 0.14), value: t)
+            needsLayout = true
+        }
+        for (i, bar) in bars.enumerated() {
+            bar.backgroundColor = color.cgColor
+            bar.removeAnimation(forKey: "bounce")
+            if playing {
+                let anim = CABasicAnimation(keyPath: "transform.scale.y")
+                anim.fromValue = 0.28
+                anim.toValue = 1
+                anim.duration = Self.durations[i % Self.durations.count]
+                anim.autoreverses = true
+                anim.repeatCount = .infinity
+                anim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                anim.beginTime = CACurrentMediaTime() + Double(i) * 0.11
+                bar.add(anim, forKey: "bounce")
+                bar.transform = CATransform3DIdentity
+            } else {
+                bar.transform = CATransform3DMakeScale(1, 0.22, 1)
+            }
         }
     }
 
-    private func barHeight(_ i: Int, _ t: Double) -> CGFloat {
-        let speeds = [5.1, 7.3, 4.2, 6.6]
-        let v = (sin(t * speeds[i] + Double(i) * 1.7) + sin(t * speeds[(i + 2) % 4] * 0.6)) / 2
-        return CGFloat(4 + (v + 1) / 2 * 10)
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        let height = min(bounds.height, 14)
+        for (i, bar) in bars.enumerated() {
+            bar.bounds = CGRect(x: 0, y: 0, width: 3, height: height)
+            bar.position = CGPoint(x: CGFloat(i) * 5 + 1.5, y: bounds.midY)
+        }
+        CATransaction.commit()
     }
 }
 

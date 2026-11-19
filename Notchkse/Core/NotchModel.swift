@@ -80,12 +80,23 @@ struct BlurFade: ViewModifier {
     }
 }
 
+/// Entrada em cascata sem blur (blur animado é o efeito mais caro de CPU).
+struct SlideFade: ViewModifier {
+    var progress: Double
+    func body(content: Content) -> some View {
+        content
+            .opacity(progress)
+            .scaleEffect(0.92 + 0.08 * progress, anchor: .top)
+            .offset(y: (1 - progress) * -12)
+    }
+}
+
 struct StaggerIn: ViewModifier {
     let index: Int
     @State private var shown = false
     func body(content: Content) -> some View {
         content
-            .modifier(BlurFade(progress: shown ? 1 : 0))
+            .modifier(SlideFade(progress: shown ? 1 : 0))
             .onAppear { withAnimation(.notchStagger(index)) { shown = true } }
     }
 }
