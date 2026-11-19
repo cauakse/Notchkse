@@ -111,21 +111,22 @@ final class SystemStats {
 
 // MARK: - Medidor: ícone claro preenchido de baixo para cima com cor forte
 
+/// Ícone em branco translúcido de fundo, preenchido de baixo para cima
+/// com branco sólido conforme o uso.
 struct UsageGauge: View {
     let symbol: String
     let label: String
     let value: Double
-    let color: Color
 
     var body: some View {
-        VStack(spacing: 5) {
+        HStack(spacing: 4) {
             ZStack {
                 Image(systemName: symbol)
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(color.opacity(0.25))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.22))
                 Image(systemName: symbol)
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(color.gradient)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
                     .mask(alignment: .bottom) {
                         GeometryReader { geo in
                             Rectangle()
@@ -135,43 +136,27 @@ struct UsageGauge: View {
                         .animation(.easeInOut(duration: 0.6), value: value)
                     }
             }
-            .frame(width: 34, height: 34)
+            .frame(width: 16, height: 16)
             Text("\(Int((value * 100).rounded()))%")
-                .font(.system(size: 11, weight: .bold).monospacedDigit())
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Theme.secondaryText)
+                .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(minWidth: 26, alignment: .leading)
         }
-    }
-
-    static func tint(for value: Double, base: Color) -> Color {
-        value >= 0.9 ? .red : (value >= 0.75 ? .orange : base)
+        .help("\(label): \(Int((value * 100).rounded()))%")
     }
 }
 
-struct SystemStatsCard: View {
+/// Indicadores de CPU, GPU e RAM no cabeçalho do notch aberto.
+struct HeaderStats: View {
     @Environment(AppContext.self) private var ctx
 
     var body: some View {
         let stats = ctx.stats
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Sistema").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.accentSoft)
-            HStack(spacing: 6) {
-                UsageGauge(symbol: "cpu.fill", label: "CPU", value: stats.cpu,
-                           color: UsageGauge.tint(for: stats.cpu, base: Color(red: 0.36, green: 0.78, blue: 1.0)))
-                UsageGauge(symbol: "square.stack.3d.down.forward.fill", label: "GPU", value: stats.gpu,
-                           color: UsageGauge.tint(for: stats.gpu, base: Color(red: 0.70, green: 0.45, blue: 1.0)))
-                UsageGauge(symbol: "memorychip.fill", label: "RAM", value: stats.ram,
-                           color: UsageGauge.tint(for: stats.ram, base: Color(red: 0.35, green: 0.90, blue: 0.55)))
-            }
-            .frame(maxWidth: .infinity)
-            Spacer(minLength: 0)
-            Text(String(format: "%.1f GB em uso", stats.ramUsedGB))
-                .font(.system(size: 9)).foregroundStyle(Theme.secondaryText)
-                .frame(maxWidth: .infinity)
+        HStack(spacing: 8) {
+            UsageGauge(symbol: "cpu.fill", label: "CPU", value: stats.cpu)
+            UsageGauge(symbol: "square.stack.3d.down.forward.fill", label: "GPU", value: stats.gpu)
+            UsageGauge(symbol: "memorychip.fill", label: String(format: "RAM (%.1f GB)", stats.ramUsedGB), value: stats.ram)
         }
-        .frame(maxHeight: .infinity, alignment: .top)
-        .card()
         .onAppear { stats.beginObserving() }
         .onDisappear { stats.endObserving() }
     }

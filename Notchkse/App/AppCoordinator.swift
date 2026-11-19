@@ -28,7 +28,7 @@ final class AppContext {
 
     var visibleTabs: [NotchTab] {
         var tabs: [NotchTab] = []
-        if [.media, .calendar, .mirror, .shortcuts, .stats].contains(where: isOn) { tabs.append(.home) }
+        if [.media, .calendar, .mirror, .shortcuts].contains(where: isOn) { tabs.append(.home) }
         if [.tray, .airdrop, .screenshots].contains(where: isOn) { tabs.append(.tray) }
         if isOn(.clipboard) { tabs.append(.clipboard) }
         if isOn(.ai) { tabs.append(.ai) }
@@ -101,7 +101,7 @@ final class AppCoordinator {
 
         c.battery.onPowerConnected = { level in
             guard c.isOn(.battery) else { return }
-            c.activities.flash(LiveActivity(kind: .charging, symbol: "bolt.fill", tint: .green,
+            c.activities.flash(LiveActivity(kind: .charging, symbol: "bolt.fill", tint: .white,
                                             trailingText: "\(level)%", trailingSymbol: nil))
         }
 
@@ -137,7 +137,7 @@ final class AppCoordinator {
         }
         c.downloads.onFinished = { url in
             if c.settings.addDownloadsToTray, c.isOn(.tray) { c.tray.add([url]) }
-            c.activities.flash(LiveActivity(kind: .downloadDone, symbol: "checkmark.circle.fill", tint: .green,
+            c.activities.flash(LiveActivity(kind: .downloadDone, symbol: "checkmark.circle.fill", tint: .white,
                                             trailingSymbol: "arrow.down.doc",
                                             title: url.lastPathComponent, subtitle: "Download concluído"))
         }

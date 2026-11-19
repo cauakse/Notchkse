@@ -7,10 +7,9 @@ struct HomeView: View {
     var body: some View {
         HStack(spacing: 10) {
             if ctx.isOn(.media) { MediaCard() }
-            if ctx.isOn(.calendar) { CalendarCard().frame(width: 164) }
-            if ctx.isOn(.stats) { SystemStatsCard().frame(width: 136) }
-            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 124) }
-            if ctx.isOn(.mirror) { MirrorTile().frame(width: 100) }
+            if ctx.isOn(.calendar) { CalendarCard().frame(width: 180) }
+            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 150) }
+            if ctx.isOn(.mirror) { MirrorTile().frame(width: 120) }
         }
     }
 }
@@ -194,7 +193,7 @@ struct CalendarCard: View {
                         if let url = event.meetingURL {
                             Button { NSWorkspace.shared.open(url); ctx.closeNotch() } label: {
                                 Image(systemName: "video.fill").font(.system(size: 10))
-                                    .padding(5).background(Color.green.opacity(event.isNow ? 0.9 : 0.35), in: Circle())
+                                    .foregroundStyle(event.isNow ? .black : .white).padding(5).background(Color.white.opacity(event.isNow ? 0.95 : 0.2), in: Circle())
                             }
                             .buttonStyle(.plain)
                             .help("Entrar na reunião")

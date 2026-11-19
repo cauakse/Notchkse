@@ -37,6 +37,20 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            Section("Aparência") {
+                Toggle("Efeito de vidro (blur) no notch aberto", isOn: $settings.glassBackground)
+                if settings.glassBackground {
+                    LabeledContent("Escurecimento") {
+                        Slider(value: $settings.glassDarkness, in: 0.05...0.9) {
+                            Text("\(Int(settings.glassDarkness * 100))%")
+                        }
+                        .frame(width: 220)
+                    }
+                }
+                Text("Fechado, o notch continua preto sólido para se fundir com o notch físico.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             ForEach(ModuleID.groups, id: \.0) { group in
                 Section(group.0) {
                     ForEach(group.1) { module in
@@ -47,7 +61,7 @@ struct SettingsView: View {
                                     Text(module.subtitle).font(.caption).foregroundStyle(.secondary)
                                 }
                             } icon: {
-                                Image(systemName: module.symbol).foregroundStyle(Theme.accent)
+                                Image(systemName: module.symbol).foregroundStyle(.primary)
                             }
                         }
                         .disabled(module == .lyrics && !settings.isOn(.media))

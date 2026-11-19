@@ -56,8 +56,9 @@ extension Animation {
 }
 
 enum Theme {
-    static let accent = Color(red: 0.545, green: 0.361, blue: 0.965)
-    static let accentSoft = Color(red: 0.70, green: 0.60, blue: 1.0)
+    // Monocromático: só preto e branco.
+    static let accent = Color.white
+    static let accentSoft = Color.white.opacity(0.92)
     static let card = Color.white.opacity(0.06)
     static let cardStroke = Color.white.opacity(0.08)
     static let secondaryText = Color.white.opacity(0.55)

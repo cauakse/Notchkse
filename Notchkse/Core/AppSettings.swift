@@ -45,7 +45,7 @@ enum ModuleID: String, CaseIterable, Identifiable {
         case .battery: "Aviso ao conectar o carregador"
         case .bluetooth: "Bateria de AirPods, teclado, mouse… ao conectar"
         case .downloads: "Progresso e aviso de download concluído"
-        case .stats: "Uso de CPU, GPU e RAM (só lê com o notch aberto)"
+        case .stats: "CPU, GPU e RAM no topo do notch aberto (só lê com ele aberto)"
         }
     }
 
@@ -100,6 +100,10 @@ final class AppSettings {
     var agentWorkingDirectory: String { didSet { defaults.set(agentWorkingDirectory, forKey: "agentWorkingDirectory") } }
     var addDownloadsToTray: Bool { didSet { defaults.set(addDownloadsToTray, forKey: "addDownloadsToTray") } }
     var pinnedShortcuts: [String] { didSet { defaults.set(pinnedShortcuts, forKey: "pinnedShortcuts") } }
+    /// Fundo do notch aberto com efeito de vidro (blur do que está atrás).
+    var glassBackground: Bool { didSet { defaults.set(glassBackground, forKey: "glassBackground") } }
+    /// 0 = vidro bem transparente, 1 = quase preto sólido.
+    var glassDarkness: Double { didSet { defaults.set(glassDarkness, forKey: "glassDarkness") } }
 
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
@@ -129,6 +133,8 @@ final class AppSettings {
             "agentWorkingDirectory": NSHomeDirectory(),
             "addDownloadsToTray": false,
             "pinnedShortcuts": [String](),
+            "glassBackground": true,
+            "glassDarkness": 0.45,
         ])
         modules = Set(d.stringArray(forKey: "modules") ?? [])
         hoverToOpen = d.bool(forKey: "hoverToOpen")
@@ -141,6 +147,8 @@ final class AppSettings {
         agentWorkingDirectory = d.string(forKey: "agentWorkingDirectory") ?? NSHomeDirectory()
         addDownloadsToTray = d.bool(forKey: "addDownloadsToTray")
         pinnedShortcuts = d.stringArray(forKey: "pinnedShortcuts") ?? []
+        glassBackground = d.bool(forKey: "glassBackground")
+        glassDarkness = d.double(forKey: "glassDarkness")
     }
 
     func isOn(_ module: ModuleID) -> Bool { modules.contains(module.rawValue) }

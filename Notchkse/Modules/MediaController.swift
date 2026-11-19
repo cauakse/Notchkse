@@ -19,7 +19,8 @@ final class MediaController {
     private(set) var artist = ""
     private(set) var album = ""
     private(set) var artwork: NSImage?
-    private(set) var accent: Color = Theme.accentSoft
+    /// Cor de destaque da música (fixa em branco no tema monocromático).
+    let accent: Color = .white
     private(set) var isPlaying = false
     private(set) var duration: Double = 0
     private(set) var source: MediaSource?
@@ -123,7 +124,6 @@ final class MediaController {
         isPlaying = playing
         if changed {
             artwork = nil
-            accent = Theme.accentSoft
             loadArtwork(src: src, key: key)
             onTrackChange?()
         }
@@ -187,12 +187,10 @@ final class MediaController {
                 data = AppleScript.run("tell application \"Music\" to return raw data of artwork 1 of current track")?.data
             }
             let image = data.flatMap { ImageUtils.thumbnail(data: $0, maxPixel: 300) }
-            let color = image.flatMap { ImageUtils.accentColor(of: $0) }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.trackKey == key else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     self.artwork = image
-                    if let color { self.accent = Color(nsColor: color) }
                 }
             }
         }

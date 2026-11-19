@@ -10,10 +10,23 @@ struct NotchRootView: View {
         let bottomRadius = model.isExpanded ? NotchMetrics.openBottomRadius : NotchMetrics.closedBottomRadius
         let shape = NotchShape(topRadius: topRadius, bottomRadius: bottomRadius)
 
+        let glass = model.isExpanded && ctx.settings.glassBackground
+
         ZStack(alignment: .top) {
-            shape
-                .fill(Color.black)
-                .shadow(color: .black.opacity(model.isExpanded ? 0.55 : 0), radius: 16, y: 8)
+            // Fechado: preto sólido (se funde com o notch físico).
+            // Aberto com vidro: blur do que está atrás + camada preta ajustável.
+            ZStack {
+                if glass {
+                    VisualEffectBlur()
+                        .clipShape(shape)
+                        .transition(.opacity)
+                }
+                shape.fill(Color.black.opacity(glass ? ctx.settings.glassDarkness : 1))
+            }
+            .compositingGroup()
+            .shadow(color: .black.opacity(model.isExpanded ? 0.5 : 0), radius: 16, y: 8)
+            .animation(.easeInOut(duration: 0.25), value: glass)
+            .animation(.easeInOut(duration: 0.2), value: ctx.settings.glassDarkness)
 
             Group {
                 if model.isExpanded {
@@ -131,7 +144,7 @@ struct ClosedView: View {
         }
         if let text = a.trailingText {
             return AnyView(Text(text).font(.system(size: 12, weight: .semibold).monospacedDigit())
-                .foregroundStyle(a.kind == .charging ? .green : .white)
+                .foregroundStyle(.white)
                 .contentTransition(.numericText()))
         }
         if let symbol = a.trailingSymbol {
@@ -158,6 +171,20 @@ struct ClosedView: View {
 }
 
 // MARK: - Componentes
+
+/// Desfoque nativo do macOS (o mesmo material dos HUDs do sistema).
+struct VisualEffectBlur: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
 
 /// Visualizador "fake" de áudio: ~8 quadros/s e pausado quando não toca.
 struct AudioBars: View {

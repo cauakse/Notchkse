@@ -49,7 +49,7 @@ struct TrayView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "airplayaudio")
                         .font(.system(size: 28, weight: .medium))
-                        .foregroundStyle(airDropTargeted ? Color.white : Theme.accentSoft)
+                        .foregroundStyle(.white)
                         .symbolEffect(.pulse, isActive: airDropTargeted)
                     Text("AirDrop").font(.system(size: 12, weight: .semibold))
                     Text(ctx.tray.items.isEmpty ? "Solte aqui" : "Solte ou clique\npara enviar tudo")
@@ -57,7 +57,7 @@ struct TrayView: View {
                 }
                 .frame(width: 120)
                 .frame(maxHeight: .infinity)
-                .background((airDropTargeted ? Theme.accent.opacity(0.35) : Theme.card),
+                .background((airDropTargeted ? Color.white.opacity(0.18) : Theme.card),
                             in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.cardStroke))
                 .scaleEffect(airDropTargeted ? 1.04 : 1)
@@ -93,7 +93,7 @@ struct TrayTile: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 if item.isScreenshot {
                     Image(systemName: "camera.viewfinder").font(.system(size: 9, weight: .bold))
-                        .padding(3).background(Theme.accent, in: Circle()).offset(x: 4, y: -4)
+                        .foregroundStyle(.black).padding(3).background(Color.white, in: Circle()).offset(x: 4, y: -4)
                 }
                 if hovering {
                     Button { withAnimation(.spring) { ctx.tray.remove(item) } } label: {
@@ -194,7 +194,7 @@ struct ClipboardView: View {
                 }
                 Spacer(minLength: 0)
                 if copiedID == item.id {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).transition(.scale)
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.white).transition(.scale)
                 } else if let icon = item.appIcon {
                     Image(nsImage: icon).resizable().frame(width: 16, height: 16).opacity(0.8)
                 }
@@ -255,7 +255,7 @@ struct AIView: View {
                 } else {
                     Button(action: send) {
                         Image(systemName: "arrow.up.circle.fill").font(.system(size: 20))
-                            .foregroundStyle(prompt.isEmpty ? Theme.secondaryText : Theme.accentSoft)
+                            .foregroundStyle(prompt.isEmpty ? Theme.secondaryText : .white)
                     }
                     .buttonStyle(HoverButtonStyle())
                     .disabled(prompt.isEmpty || agent == nil)
@@ -266,7 +266,7 @@ struct AIView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 6) {
                         if !runner.lastPrompt.isEmpty {
-                            Text(runner.lastPrompt).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.accentSoft)
+                            Text(runner.lastPrompt).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.secondaryText)
                         }
                         if runner.isRunning && runner.output.isEmpty {
                             HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Pensando…").font(.system(size: 12)) }
