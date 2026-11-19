@@ -20,6 +20,7 @@ final class AppContext {
     let stats = SystemStats()
     @ObservationIgnored let bluetooth = BluetoothMonitor()
     @ObservationIgnored let screenshots = ScreenshotMonitor()
+    @ObservationIgnored lazy var menuBar = MenuBarObserver(model: model)
 
     @ObservationIgnored var openSettings: () -> Void = {}
     @ObservationIgnored var closeNotch: () -> Void = {}
@@ -71,6 +72,7 @@ final class AppCoordinator {
         toggle(c.isOn(.screenshots), c.screenshots.start, c.screenshots.stop)
         toggle(c.isOn(.calendar), c.calendar.start, c.calendar.stop)
         if c.isOn(.ai) { c.agent.detect() }
+        toggle(c.settings.avoidMenuBar, c.menuBar.start, c.menuBar.stop)
         if !c.visibleTabs.contains(c.model.tab), let first = c.visibleTabs.first { c.model.tab = first }
     }
 

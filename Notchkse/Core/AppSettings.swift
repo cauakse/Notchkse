@@ -101,6 +101,8 @@ final class AppSettings {
     var addDownloadsToTray: Bool { didSet { defaults.set(addDownloadsToTray, forKey: "addDownloadsToTray") } }
     var pinnedShortcuts: [String] { didSet { defaults.set(pinnedShortcuts, forKey: "pinnedShortcuts") } }
     /// Fundo do notch aberto com efeito de vidro (blur do que está atrás).
+    /// Não alargar o notch por cima dos menus do app (usa Acessibilidade).
+    var avoidMenuBar: Bool { didSet { defaults.set(avoidMenuBar, forKey: "avoidMenuBar"); onModulesChanged?() } }
     var glassBackground: Bool { didSet { defaults.set(glassBackground, forKey: "glassBackground") } }
     /// 0 = vidro bem transparente, 1 = quase preto sólido.
     var glassDarkness: Double { didSet { defaults.set(glassDarkness, forKey: "glassDarkness") } }
@@ -134,6 +136,7 @@ final class AppSettings {
             "addDownloadsToTray": false,
             "pinnedShortcuts": [String](),
             "glassBackground": true,
+            "avoidMenuBar": true,
             "glassDarkness": 0.45,
         ])
         modules = Set(d.stringArray(forKey: "modules") ?? [])
@@ -148,6 +151,7 @@ final class AppSettings {
         addDownloadsToTray = d.bool(forKey: "addDownloadsToTray")
         pinnedShortcuts = d.stringArray(forKey: "pinnedShortcuts") ?? []
         glassBackground = d.bool(forKey: "glassBackground")
+        avoidMenuBar = d.bool(forKey: "avoidMenuBar")
         glassDarkness = d.double(forKey: "glassDarkness")
     }
 

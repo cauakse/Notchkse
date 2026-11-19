@@ -47,6 +47,9 @@ struct SettingsView: View {
                         .frame(width: 220)
                     }
                 }
+                Toggle("Não cobrir os menus dos apps", isOn: $settings.avoidMenuBar)
+                Text("Se os menus do app (Arquivo, Editar…) ou os ícones da direita chegarem perto do notch, a música e o download não alargam o notch. Precisa da permissão de Acessibilidade.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Text("Fechado, o notch continua preto sólido para se fundir com o notch físico.")
                     .font(.caption).foregroundStyle(.secondary)
             }

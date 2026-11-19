@@ -46,6 +46,11 @@ final class NotchModel {
     var isDropTargeted = false
     var notchSize = CGSize(width: 200, height: 32)
     var hasHardwareNotch = true
+    /// Espaço livre na barra de menus à esquerda/direita do notch (pontos).
+    var leftRoom: CGFloat = .infinity
+    var rightRoom: CGFloat = .infinity
+    /// Largura que cabe de cada lado sem cobrir menus nem ícones.
+    var sideRoom: CGFloat { min(leftRoom, rightRoom) - 6 }
 }
 
 /// Animações no estilo "spring" que dão a sensação de sistema.

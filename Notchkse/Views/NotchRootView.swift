@@ -68,12 +68,12 @@ struct NotchRootView: View {
         }
         let base = notch.width + 2 * NotchMetrics.closedTopRadius
         if let activity = ClosedView.activeActivity(ctx) {
-            let side: CGFloat = activity.hasPeekRow ? 90 : (activity.trailingText != nil ? 46 : 34)
+            let side = ClosedView.sideWidth(activity)
             let extraHeight = activity.hasPeekRow ? NotchMetrics.peekRowHeight : 0
             return CGSize(width: base + 2 * side, height: notch.height + extraHeight)
         }
         if ClosedView.showsMedia(ctx) {
-            return CGSize(width: base + 2 * 34, height: notch.height)
+            return CGSize(width: base + 2 * ClosedView.mediaSide, height: notch.height)
         }
         if model.isHovering {
             return CGSize(width: base + 18, height: notch.height + 4)
@@ -89,12 +89,24 @@ struct ClosedView: View {
     let notchWidth: CGFloat
     let height: CGFloat
 
+    static let mediaSide: CGFloat = 34
+
+    /// Largura de cada lado que a atividade ocupa no notch fechado.
+    static func sideWidth(_ a: LiveActivity) -> CGFloat {
+        a.hasPeekRow ? 90 : (a.trailingText != nil ? 46 : mediaSide)
+    }
+
+    /// Avisos rápidos aparecem sempre (somem em segundos). Os persistentes
+    /// (download, música) só aparecem se não cobrirem os menus do app.
     static func activeActivity(_ ctx: AppContext) -> LiveActivity? {
-        ctx.activities.transient ?? ctx.activities.download
+        if let transient = ctx.activities.transient { return transient }
+        if let download = ctx.activities.download, sideWidth(download) <= ctx.model.sideRoom { return download }
+        return nil
     }
 
     static func showsMedia(_ ctx: AppContext) -> Bool {
         ctx.isOn(.media) && ctx.settings.mediaLiveActivity && ctx.media.hasTrack && ctx.media.isPlaying
+            && mediaSide <= ctx.model.sideRoom
     }
 
     var body: some View {

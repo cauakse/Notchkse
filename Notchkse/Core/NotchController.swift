@@ -154,8 +154,7 @@ final class NotchController {
 
     /// Fora de live activity, só o notch físico conta como área de hover.
     private func coreRectOrActivity(contains point: NSPoint) -> Bool {
-        let hasActivity = context.activities.transient != nil || context.activities.download != nil
-            || (context.isOn(.media) && context.settings.mediaLiveActivity && context.media.isPlaying)
+        let hasActivity = ClosedView.activeActivity(context) != nil || ClosedView.showsMedia(context)
         return hasActivity || coreRect.contains(point)
     }
 
