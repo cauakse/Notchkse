@@ -93,12 +93,8 @@ final class AppCoordinator {
             guard let self else { return }
             let m = c.media
             if !m.hasTrack { c.lyrics.reset(); return }
+            // Troca de faixa não expande o notch: só atualiza capa/letra.
             self.loadLyricsIfNeeded()
-            if c.settings.mediaLiveActivity, !c.model.isExpanded, m.isPlaying {
-                c.activities.flash(LiveActivity(kind: .track, image: m.artwork, tint: m.accent,
-                                                trailingSymbol: "waveform",
-                                                title: m.title, subtitle: m.artist), duration: 2.8)
-            }
         }
 
         c.battery.onPowerConnected = { level in

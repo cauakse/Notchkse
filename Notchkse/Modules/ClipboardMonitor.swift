@@ -73,10 +73,8 @@ final class ClipboardMonitor {
         case .image(let file, let type):
             if let data = try? Data(contentsOf: file) { pb.setData(data, forType: type) }
         }
+        // Não reordena: o item clicado fica onde está.
         lastChange = pb.changeCount
-        if let index = items.firstIndex(of: item) {
-            items.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
-        }
     }
 
     func remove(_ item: ClipItem) {
