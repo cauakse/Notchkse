@@ -125,11 +125,16 @@ final class AppCoordinator {
                 withAnimation(.notchPeek) { c.activities.download = nil }
                 return
             }
+            // nil = navegador não informa progresso (ex.: Firefox) → barra indeterminada.
             let progress = list.compactMap(\.progress).min()
-            let value = LiveActivity(kind: .download, symbol: "arrow.down.circle.fill", tint: Theme.accentSoft,
-                                     progress: progress ?? 0)
-            withAnimation(.notchPeek) {
-                c.activities.download = value
+            if var current = c.activities.download {
+                // Mantém a mesma atividade (sem "piscar"), só atualiza o valor.
+                current.progress = progress
+                c.activities.download = current
+            } else {
+                let value = LiveActivity(kind: .download, symbol: "arrow.down.circle.fill", tint: Theme.accentSoft,
+                                         progress: progress)
+                withAnimation(.notchPeek) { c.activities.download = value }
             }
             _ = first
         }

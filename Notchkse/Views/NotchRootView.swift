@@ -128,10 +128,12 @@ struct ClosedView: View {
 
     /// Progresso do download como barrinha fina embaixo do notch quando a
     /// música ocupa as laterais ou quando o notch está encolhido.
-    static func downloadStrip(_ ctx: AppContext) -> Double? {
+    struct Strip { var progress: Double? }  // progress nil = indeterminado
+
+    static func downloadStrip(_ ctx: AppContext) -> Strip? {
         guard ctx.activities.transient == nil, let download = ctx.activities.download,
               ctx.model.sideRoom < fullSide || mediaSide(ctx) != nil else { return nil }
-        return download.progress ?? 0
+        return Strip(progress: download.progress)
     }
 
     /// Largura de cada lado para a música, ou nil se não deve aparecer.
@@ -171,8 +173,8 @@ struct ClosedView: View {
                 } else {
                     Color.clear.frame(height: height)
                 }
-                if let progress = Self.downloadStrip(ctx) {
-                    DownloadStrip(progress: progress)
+                if let strip = Self.downloadStrip(ctx) {
+                    DownloadStrip(progress: strip.progress)
                         .padding(.horizontal, NotchMetrics.closedBottomRadius + 4)
                         .frame(height: Self.stripHeight)
                         .transition(.opacity)
@@ -286,20 +288,65 @@ struct VisualEffectBlur: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
-/// Barrinha fina de progresso do download (notch encolhido).
+/// Barrinha fina de progresso do download embaixo do notch.
+/// Sem progresso conhecido (Firefox), mostra um segmento correndo.
 struct DownloadStrip: View {
-    var progress: Double
+    var progress: Double?
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.18))
-                Capsule().fill(Color.white)
-                    .frame(width: max(2, geo.size.width * min(max(progress, 0), 1)))
+                if let progress {
+                    Capsule().fill(Color.white)
+                        .frame(width: max(2, geo.size.width * min(max(progress, 0), 1)))
+                        .animation(.easeOut(duration: 0.3), value: progress)
+                } else {
+                    IndeterminateBar()
+                }
             }
             .frame(height: 2)
             .frame(maxHeight: .infinity, alignment: .top)
         }
+    }
+}
+
+/// Segmento que corre de um lado ao outro, animado pelo Core Animation (~0% CPU).
+struct IndeterminateBar: NSViewRepresentable {
+    func makeNSView(context: Context) -> IndeterminateBarView { IndeterminateBarView() }
+    func updateNSView(_ view: IndeterminateBarView, context: Context) {}
+}
+
+final class IndeterminateBarView: NSView {
+    private let segment = CALayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        segment.backgroundColor = NSColor.white.cgColor
+        layer?.addSublayer(segment)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        let width = max(12, bounds.width * 0.3)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        segment.bounds = CGRect(x: 0, y: 0, width: width, height: bounds.height)
+        segment.cornerRadius = bounds.height / 2
+        segment.position = CGPoint(x: -width / 2, y: bounds.midY)
+        CATransaction.commit()
+
+        segment.removeAnimation(forKey: "run")
+        let run = CABasicAnimation(keyPath: "position.x")
+        run.fromValue = -width / 2
+        run.toValue = bounds.width + width / 2
+        run.duration = 1.2
+        run.repeatCount = .infinity
+        run.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        segment.add(run, forKey: "run")
     }
 }
 

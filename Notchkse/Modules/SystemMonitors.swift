@@ -187,7 +187,10 @@ final class DownloadsMonitor {
         source = src
 
         subscriber = Progress.addSubscriber(forFileURL: folder) { [weak self] progress in
-            let name = Self.baseName(progress.fileURL ?? URL(fileURLWithPath: "/"))
+            // O progresso que chega ao assinante costuma vir sem `fileURL`;
+            // o arquivo vem no userInfo (NSProgressFileURLKey).
+            let url = progress.fileURL ?? (progress.userInfo[.fileURLKey] as? URL)
+            let name = url.map(Self.baseName) ?? "?\(ObjectIdentifier(progress).hashValue)"
             let observation = progress.observe(\.fractionCompleted, options: [.initial, .new]) { p, _ in
                 let value = p.fractionCompleted
                 DispatchQueue.main.async { self?.updateProgress(name: name, value: value) }
@@ -213,14 +216,30 @@ final class DownloadsMonitor {
         onChange?(active)
     }
 
+    @ObservationIgnored private var pendingEmit: DispatchWorkItem?
+
     private func updateProgress(name: String, value: Double) {
         progressByName[name] = value
-        // No máximo ~4 atualizações de interface por segundo.
-        guard Date().timeIntervalSince(lastEmit) > 0.25 else { return }
+        // No máximo ~4 atualizações de interface por segundo, mas a última
+        // atualização sempre é aplicada (não fica "presa" no meio).
+        pendingEmit?.cancel()
+        let wait = max(0, 0.25 - Date().timeIntervalSince(lastEmit))
+        let work = DispatchWorkItem { [weak self] in self?.emitProgress() }
+        pendingEmit = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
+    }
+
+    private func emitProgress() {
         lastEmit = Date()
+        // Progresso sem nome conhecido vai para os downloads que ainda não têm um.
+        var anonymous = progressByName.filter { $0.key.hasPrefix("?") }.map(\.value)
         apply(active.map { item in
             var copy = item
-            copy.progress = progressByName[item.name] ?? copy.progress
+            if let named = progressByName[item.name] {
+                copy.progress = named
+            } else if !anonymous.isEmpty {
+                copy.progress = anonymous.removeFirst()
+            }
             return copy
         })
     }
