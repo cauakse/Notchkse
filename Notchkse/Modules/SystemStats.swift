@@ -40,12 +40,10 @@ final class SystemStats {
         let cpuValue = readCPU()
         let gpuValue = Self.readGPU()
         let (ramFraction, usedGB) = Self.readRAM()
-        withAnimation(.easeInOut(duration: 0.6)) {
-            if let cpuValue { cpu = cpuValue }
-            if let gpuValue { gpu = gpuValue }
-            ram = ramFraction
-            ramUsedGB = usedGB
-        }
+        if let cpuValue { cpu = cpuValue }
+        if let gpuValue { gpu = gpuValue }
+        ram = ramFraction
+        ramUsedGB = usedGB
     }
 
     /// Diferença de "ticks" de todos os núcleos desde a última leitura.
@@ -134,12 +132,12 @@ struct UsageGauge: View {
                                 .frame(height: geo.size.height * min(max(value, 0), 1))
                                 .frame(maxHeight: .infinity, alignment: .bottom)
                         }
+                        .animation(.easeInOut(duration: 0.6), value: value)
                     }
             }
             .frame(width: 34, height: 34)
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 11, weight: .bold).monospacedDigit())
-                .contentTransition(.numericText(value: value))
             Text(label)
                 .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(Theme.secondaryText)
@@ -158,7 +156,7 @@ struct SystemStatsCard: View {
         let stats = ctx.stats
         VStack(alignment: .leading, spacing: 8) {
             Text("Sistema").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.accentSoft)
-            HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 UsageGauge(symbol: "cpu.fill", label: "CPU", value: stats.cpu,
                            color: UsageGauge.tint(for: stats.cpu, base: Color(red: 0.36, green: 0.78, blue: 1.0)))
                 UsageGauge(symbol: "square.stack.3d.down.forward.fill", label: "GPU", value: stats.gpu,

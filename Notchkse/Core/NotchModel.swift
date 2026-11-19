@@ -24,10 +24,10 @@ enum NotchTab: String, CaseIterable, Identifiable {
 }
 
 enum NotchMetrics {
-    static let expandedWidth: CGFloat = 680
+    static let expandedWidth: CGFloat = 720
     static let expandedHeight: CGFloat = 236
     /// A janela tem folga para a sombra do notch expandido.
-    static let windowWidth: CGFloat = 780
+    static let windowWidth: CGFloat = 820
     static let windowHeight: CGFloat = 290
 
     static let closedTopRadius: CGFloat = 6

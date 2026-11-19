@@ -7,10 +7,10 @@ struct HomeView: View {
     var body: some View {
         HStack(spacing: 10) {
             if ctx.isOn(.media) { MediaCard() }
-            if ctx.isOn(.calendar) { CalendarCard().frame(width: 180) }
-            if ctx.isOn(.stats) { SystemStatsCard().frame(width: 150) }
-            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 140) }
-            if ctx.isOn(.mirror) { MirrorTile().frame(width: 120) }
+            if ctx.isOn(.calendar) { CalendarCard().frame(width: 164) }
+            if ctx.isOn(.stats) { SystemStatsCard().frame(width: 136) }
+            if ctx.isOn(.shortcuts) { ShortcutsCard().frame(width: 124) }
+            if ctx.isOn(.mirror) { MirrorTile().frame(width: 100) }
         }
     }
 }
@@ -22,20 +22,20 @@ struct MediaCard: View {
 
     var body: some View {
         let media = ctx.media
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             ZStack {
                 if let art = media.artwork {
                     // "Glow" da capa por trás, como no sistema.
                     Image(nsImage: art).resizable().aspectRatio(contentMode: .fill)
-                        .frame(width: 110, height: 110).blur(radius: 22).opacity(0.5)
+                        .frame(width: 84, height: 84).blur(radius: 20).opacity(0.5)
                     Image(nsImage: art).resizable().aspectRatio(contentMode: .fill)
-                        .frame(width: 110, height: 110)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .frame(width: 84, height: 84)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .transition(.opacity)
                 } else {
                     RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.08))
-                        .frame(width: 110, height: 110)
-                        .overlay(Image(systemName: "music.note").font(.system(size: 30)).foregroundStyle(Theme.secondaryText))
+                        .frame(width: 84, height: 84)
+                        .overlay(Image(systemName: "music.note").font(.system(size: 26)).foregroundStyle(Theme.secondaryText))
                 }
             }
             .scaleEffect(media.isPlaying ? 1 : 0.92)
@@ -54,19 +54,21 @@ struct MediaCard: View {
                     ProgressBar()
                 } else {
                     Text("Nada tocando").font(.system(size: 15, weight: .bold))
-                    Text("Abra o Spotify ou o Music").font(.system(size: 12)).foregroundStyle(Theme.secondaryText)
+                    Text("Abra o Spotify ou o Music").font(.system(size: 12)).foregroundStyle(Theme.secondaryText).lineLimit(2)
                     Spacer(minLength: 0)
                 }
                 controls
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(-1)
         }
+        .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         .card()
     }
 
     private var controls: some View {
         let media = ctx.media
-        return HStack(spacing: 18) {
+        return HStack(spacing: 8) {
             Spacer()
             Button(action: media.previous) { Image(systemName: "backward.fill").font(.system(size: 15)) }
             Button(action: media.togglePlay) {
@@ -77,7 +79,7 @@ struct MediaCard: View {
             Button(action: media.next) { Image(systemName: "forward.fill").font(.system(size: 15)) }
             Spacer()
         }
-        .buttonStyle(HoverButtonStyle(size: 32))
+        .buttonStyle(HoverButtonStyle(size: 30))
     }
 }
 
